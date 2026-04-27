@@ -90,6 +90,19 @@ export default class DiagramSettingsTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
+      .setName("Default folder")
+      .setDesc("Folder to save new diagrams in. Leave empty to use the vault root.")
+      .addText((text) => {
+        text
+          .setPlaceholder("Example: diagrams/")
+          .setValue(this.plugin.settings.defaultFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.defaultFolder = value.trim();
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
       .setName("CSS snippets")
       .setDesc("Add paths to CSS snippets within the Vault, one by line. The snippets are used to modify the style of the diagram editor.")
         .addTextArea(text => text

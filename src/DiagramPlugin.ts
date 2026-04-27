@@ -267,9 +267,19 @@ export default class DiagramPlugin extends Plugin {
   }
 
   private async createNewDiagramFile(folder?: TFolder) {
-    const targetFolder = folder
-      ? folder
-      : this.app.fileManager.getNewFileParent("");
+    let targetFolder: TFolder;
+    if (folder) {
+      targetFolder = folder;
+    } else if (this.settings.defaultFolder) {
+      const existing = this.app.vault.getAbstractFileByPath(this.settings.defaultFolder);
+      if (existing instanceof TFolder) {
+        targetFolder = existing;
+      } else {
+        targetFolder = await this.app.vault.createFolder(this.settings.defaultFolder);
+      }
+    } else {
+      targetFolder = this.app.fileManager.getNewFileParent("");
+    }
     const newFilePath = await this.getNewDiagramFilePath(
       targetFolder,
       "Untitled Diagram",
