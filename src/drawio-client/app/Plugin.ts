@@ -187,49 +187,44 @@ export default class Plugin {
   }
 
   // Get SVG data for saving
+  //
+  // Previously this used mxSvgCanvas2D + mxImageExport to manually render the SVG,
+  // which caused draw.io-specific features to be lost on save:
+  //   - flowAnimation=1  → no @keyframes CSS animation in output SVG
+  //   - shadow=1         → shadow effect dropped
+  //   - sketch/rough     → hand-drawn style dropped
+  //   - embedded images  → may be missing or broken
+  //
+  // Fix: use draw.io's own graph.getSvg() export pipeline, which correctly handles
+  // all of the above. We still call embedGraphInSvg (to write the editable XML into
+  // the SVG `content` attribute) and embedFontsInSvg (to inline custom font CSS).
   async getSvg(editor: Editor): Promise<string> {
-    const svgNamespaceUri = "http://www.w3.org/2000/svg";
-    const svgDocument = document.createElementNS(svgNamespaceUri, "svg");
-
     const graph = editor.graph;
-    const view = graph.getView();
-    const { x, y, height, width } = view.graphBounds;
-    const viewScale = view.scale;
-    svgDocument.setAttribute("version", "1.1");
-    svgDocument.setAttribute("height", `${height / viewScale}px`);
-    svgDocument.setAttribute("width", `${width / viewScale}px`);
-    svgDocument.setAttribute(
-      "viewBox",
-      `0 0 ${width / viewScale} ${height / viewScale}`
+
+    // draw.io's native SVG export — handles flowAnimation, shadow, sketch, images, etc.
+    // Signature: getSvg(background, scale, border, nocrop, crisp, ignoreSelection,
+    //                   showText, imgExport, linkTarget, hasShadow, incEdges)
+    const svgElement: SVGElement = graph.getSvg(
+      null,   // background color (null = transparent)
+      1,      // scale
+      10,     // border margin (px)
+      false,  // nocrop
+      null,   // crisp
+      true,   // ignoreSelection — export full diagram
+      true,   // showText
+      null,   // imgExport
+      false,  // linkTarget
+      false,  // hasShadow — read from graph settings automatically
+      true    // incEdges
     );
 
-    const svgCanvas = new mxSvgCanvas2D(svgDocument);
-    svgCanvas.translate(-x / viewScale, -y / viewScale);
-    svgCanvas.scale(1 / viewScale);
+    // Embed the editable mxGraphModel XML into the SVG `content` attribute
+    await this.embedGraphInSvg(editor, svgElement);
 
-    const imageExport = new mxImageExport();
-    const graphCellState = view.getState(graph.model.root);
+    // Embed custom font CSS into <style> tag
+    await this.embedFontsInSvg(editor, svgElement);
 
-    imageExport.getLinkForCellState = function (state, canvas) {
-      const cell = state.cell;
-      if (cell.value != null && typeof cell.value == "object") {
-        return cell.value.getAttribute("link");
-      }
-      return null;
-    };
-
-    imageExport.drawState(graphCellState, svgCanvas);
-
-    await this.embedGraphInSvg(editor, svgDocument);
-
-    await this.embedFontsInSvg(editor, svgDocument);
-
-    // Add margin to SVG
-    this.addViewBoxMarginToSvg(svgDocument);
-
-    const xml = this.xmlToString(svgDocument);
-
-    return xml;
+    return this.xmlToString(svgElement);
   }
 
   private embedGraphInSvg(editor: Editor, svg: SVGElement) {

@@ -1,4 +1,4 @@
-import typescript from "@rollup/plugin-typescript";
+import typescript from "rollup-plugin-typescript2";
 import { terser } from "rollup-plugin-terser";
 import copy from "rollup-plugin-copy";
 import clear from "rollup-plugin-clear";
@@ -26,6 +26,7 @@ export default [
       inline(),
       typescript({
         tsconfig: "./tsconfig.es5.json",
+        check: false,
       }),
       terser(),
       storeBundle(chunkCache),
@@ -43,6 +44,7 @@ export default [
       inline(),
       typescript({
         tsconfig: "./tsconfig.es5.json",
+        check: false,
       }),
       terser(),
       storeBundle(chunkCache),
@@ -63,7 +65,7 @@ export default [
       clear({ targets: ["./dist"] }),
       retrieveBundle(chunkCache),
       inline(),
-      typescript(),
+      typescript({ check: false, exclude: ["src/drawio-client/**"] }),
       terser(),
       copy({
         targets: [

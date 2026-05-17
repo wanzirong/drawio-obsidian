@@ -28,26 +28,18 @@ export function retrieveBundle(cache) {
       if (id.startsWith(prefix)) {
         const name = id.slice(prefix.length);
         if (cache.has(name)) {
-          return name;
+          return "\0bundle:" + name;
         }
       }
       return null;
     },
     load(id) {
-      if (cache.has(id)) {
-        return cache.get(id);
-      }
-      return null;
-    },
-    transform: (codeContent, id) => {
-      if (cache.has(id)) {
-        console.log("retrieve", id);
-        const code = `export default ${JSON.stringify(codeContent)};`;
-        const map = { mappings: "" };
-        return {
-          code,
-          map,
-        };
+      if (id.startsWith("\0bundle:")) {
+        const name = id.slice("\0bundle:".length);
+        if (cache.has(name)) {
+          console.log("retrieve", name);
+          return `export default ${JSON.stringify(cache.get(name))};`;
+        }
       }
       return null;
     },
